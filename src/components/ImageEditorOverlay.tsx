@@ -1273,15 +1273,15 @@ export function ImageEditorOverlay({
               left: clampRange(
                 ((activeTextEdit.x - viewRect.x) / viewRect.width) * displayWidth,
                 4,
-                Math.max(4, displayWidth - 244)
+                Math.max(4, displayWidth - 292)
               ),
               top: clampRange(
                 ((activeTextEdit.y - viewRect.y) / viewRect.height) * displayHeight,
                 4,
-                Math.max(4, displayHeight - 106)
+                Math.max(4, displayHeight - 112)
               ),
             }}
-            className="absolute z-20 flex w-60 max-w-[calc(100vw-3rem)] flex-col gap-1.5 rounded-xl border border-indigo-400/60 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-md"
+            className="absolute z-20 flex w-72 max-w-[calc(100vw-3rem)] flex-col gap-1.5 rounded-xl border border-indigo-400/60 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-md"
           >
             <label htmlFor={textInputId} className="sr-only">
               テキスト注釈
@@ -1315,26 +1315,26 @@ export function ImageEditorOverlay({
               placeholder="テキストを入力..."
               className="w-full resize-none rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs leading-relaxed text-slate-100 placeholder-slate-500 focus:border-indigo-400 focus:outline-none"
             />
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
                 <span
                   className="inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-white/25"
                   style={{ backgroundColor: activeTextEdit.color }}
                   aria-hidden="true"
                 />
-                <span>Enter 確定 · Shift+Enter 改行</span>
+                <span className="whitespace-nowrap">Enter 確定 · Shift+Enter 改行</span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1 whitespace-nowrap">
                 <button
                   type="button"
                   onClick={closeTextEdit}
-                  className="rounded-md px-2 py-1 text-[11px] font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                  className="shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
                 >
                   取消
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-indigo-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-indigo-500"
+                  className="shrink-0 whitespace-nowrap rounded-md bg-indigo-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-indigo-500"
                 >
                   確定
                 </button>
