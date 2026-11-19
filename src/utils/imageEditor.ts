@@ -1,14 +1,32 @@
 import {
   STROKE_WIDTH_PRESETS,
+  TEXT_FONT_SIZE_PRESETS,
   type ArrowAnnotation,
   type CropRect,
   type EditorAnnotation,
   type RectAnnotation,
   type StrokeWidthPreset,
+  type TextAnnotation,
+  type TextFontSizePreset,
 } from '../types/editor';
 import { canvasToBlob, loadImageFromBlob } from './imageProcessor';
 
 export const FULL_VIEW_RECT: CropRect = { x: 0, y: 0, width: 1, height: 1 };
+
+export const EDITOR_TEXT_FONT_FAMILY =
+  'system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif';
+
+export interface TextBoxMetrics {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fontSizePx: number;
+  lineHeight: number;
+  padX: number;
+  padY: number;
+  lines: string[];
+}
 
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -41,6 +59,22 @@ export function getStrokeWidthPx(
 ): number {
   const config =
     STROKE_WIDTH_PRESETS.find((item) => item.id === preset) ?? STROKE_WIDTH_PRESETS[1];
+  const refDim = Math.sqrt(Math.max(1, naturalWidth) * Math.max(1, naturalHeight));
+  const basePx = Math.max(config.minPx, refDim * config.ratio);
+  return basePx * displayScale;
+}
+
+/**
+ * 元画像解像度に比例したテキストのフォントサイズを計算する
+ */
+export function getTextFontSizePx(
+  naturalWidth: number,
+  naturalHeight: number,
+  preset: TextFontSizePreset,
+  displayScale: number = 1
+): number {
+  const config =
+    TEXT_FONT_SIZE_PRESETS.find((item) => item.id === preset) ?? TEXT_FONT_SIZE_PRESETS[1];
   const refDim = Math.sqrt(Math.max(1, naturalWidth) * Math.max(1, naturalHeight));
   const basePx = Math.max(config.minPx, refDim * config.ratio);
   return basePx * displayScale;
@@ -225,11 +259,155 @@ export function drawArrowAnnotation(
   ctx.restore();
 }
 
+export function measureTextAnnotationBox(
+  ctx: CanvasRenderingContext2D,
+  annotation: Pick<
+    TextAnnotation,
+    'x' | 'y' | 'text' | 'fontSize' | 'backgroundStyle'
+  >,
+  viewRect: CropRect,
+  canvasWidth: number,
+  canvasHeight: number,
+  naturalWidth: number,
+  naturalHeight: number
+): TextBoxMetrics {
+  const safeViewW = Math.max(1e-6, viewRect.width);
+  const safeViewH = Math.max(1e-6, viewRect.height);
+  const displayScale = canvasWidth / (safeViewW * Math.max(1, naturalWidth));
+  const fontSizePx = getTextFontSizePx(
+    naturalWidth,
+    naturalHeight,
+    annotation.fontSize,
+    displayScale
+  );
+  const lineHeight = fontSizePx * 1.28;
+  const lines = annotation.text.split(/\r?\n/);
+  const isPill = annotation.backgroundStyle === 'pill';
+  const padX = isPill ? fontSizePx * 0.42 : fontSizePx * 0.14;
+  const padY = isPill ? fontSizePx * 0.24 : fontSizePx * 0.1;
+
+  ctx.save();
+  ctx.font = `700 ${fontSizePx}px ${EDITOR_TEXT_FONT_FAMILY}`;
+  let maxLineWidth = fontSizePx * 0.6;
+  for (const line of lines) {
+    const measured = ctx.measureText(line || ' ').width;
+    if (measured > maxLineWidth) {
+      maxLineWidth = measured;
+    }
+  }
+  ctx.restore();
+
+  const x = ((annotation.x - viewRect.x) / safeViewW) * canvasWidth;
+  const y = ((annotation.y - viewRect.y) / safeViewH) * canvasHeight;
+
+  return {
+    x,
+    y,
+    width: maxLineWidth + padX * 2,
+    height: lines.length * lineHeight + padY * 2,
+    fontSizePx,
+    lineHeight,
+    padX,
+    padY,
+    lines,
+  };
+}
+
+export function drawTextAnnotation(
+  ctx: CanvasRenderingContext2D,
+  annotation: TextAnnotation,
+  viewRect: CropRect,
+  canvasWidth: number,
+  canvasHeight: number,
+  naturalWidth: number,
+  naturalHeight: number
+): void {
+  if (
+    !annotation.text.trim() ||
+    viewRect.width <= 0 ||
+    viewRect.height <= 0 ||
+    naturalWidth <= 0 ||
+    naturalHeight <= 0
+  ) {
+    return;
+  }
+
+  const metrics = measureTextAnnotationBox(
+    ctx,
+    annotation,
+    viewRect,
+    canvasWidth,
+    canvasHeight,
+    naturalWidth,
+    naturalHeight
+  );
+  const { x, y, width, height, fontSizePx, lineHeight, padX, padY, lines } = metrics;
+  const displayScale = canvasWidth / (viewRect.width * naturalWidth);
+
+  ctx.save();
+  ctx.font = `700 ${fontSizePx}px ${EDITOR_TEXT_FONT_FAMILY}`;
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+
+  if (annotation.backgroundStyle === 'pill') {
+    const isLightText =
+      annotation.color === '#FFFFFF' || annotation.color === '#EAB308';
+    const radius = Math.max(3, Math.min(fontSizePx * 0.35, 14 * displayScale));
+
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, radius);
+    ctx.fillStyle = isLightText ? 'rgba(15, 23, 42, 0.9)' : annotation.color;
+    ctx.fill();
+
+    if (isLightText || annotation.color === '#111827') {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+      ctx.lineWidth = Math.max(1, fontSizePx * 0.06);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = isLightText ? annotation.color : '#FFFFFF';
+    const textOffsetY = (lineHeight - fontSizePx) / 2;
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], x + padX, y + padY + i * lineHeight + textOffsetY);
+    }
+    ctx.restore();
+    return;
+  }
+
+  const textOffsetY = (lineHeight - fontSizePx) / 2;
+
+  if (annotation.backgroundStyle === 'outline') {
+    const isLightText =
+      annotation.color === '#FFFFFF' || annotation.color === '#EAB308';
+    ctx.lineWidth = Math.max(2, fontSizePx * 0.16);
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.strokeStyle = isLightText ? 'rgba(15, 23, 42, 0.92)' : '#FFFFFF';
+    ctx.fillStyle = annotation.color;
+
+    for (let i = 0; i < lines.length; i++) {
+      const lx = x + padX;
+      const ly = y + padY + i * lineHeight + textOffsetY;
+      ctx.strokeText(lines[i], lx, ly);
+      ctx.fillText(lines[i], lx, ly);
+    }
+    ctx.restore();
+    return;
+  }
+
+  ctx.fillStyle = annotation.color;
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], x + padX, y + padY + i * lineHeight + textOffsetY);
+  }
+  ctx.restore();
+}
+
 /**
- * 元画像・モザイク・枠/矢印・トリミングを指定順序でオフスクリーン合成する
+ * 元画像・モザイク・枠/矢印・テキスト・トリミングを指定順序でオフスクリーン合成する
  * 1. モザイク領域の適用
  * 2. 矩形・矢印の描画
- * 3. トリミング枠の切り出し
+ * 3. テキスト注釈の描画
+ * 4. トリミング枠の切り出し
  */
 export function renderEditedCanvas(
   sourceImage: HTMLImageElement,
@@ -290,7 +468,22 @@ export function renderEditedCanvas(
     }
   }
 
-  // 3. トリミング切り出し
+  // 3. テキスト注釈描画
+  for (const annotation of annotations) {
+    if (annotation.type === 'text') {
+      drawTextAnnotation(
+        ctx,
+        annotation,
+        FULL_VIEW_RECT,
+        fullCanvas.width,
+        fullCanvas.height,
+        fullCanvas.width,
+        fullCanvas.height
+      );
+    }
+  }
+
+  // 4. トリミング切り出し
   if (crop && crop.width > 0 && crop.height > 0) {
     const normalized = normalizeCropRect(crop);
     const cx = Math.max(

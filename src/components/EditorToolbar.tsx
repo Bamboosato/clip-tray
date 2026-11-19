@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Save,
   Square,
+  Type,
   Undo2,
   X,
   ZoomIn,
@@ -18,10 +19,14 @@ import {
 import {
   EDITOR_COLORS,
   STROKE_WIDTH_PRESETS,
+  TEXT_BACKGROUND_STYLES,
+  TEXT_FONT_SIZE_PRESETS,
   type CropRect,
   type EditorColor,
   type EditorTool,
   type StrokeWidthPreset,
+  type TextBackgroundStyle,
+  type TextFontSizePreset,
 } from '../types/editor';
 
 interface EditorToolbarProps {
@@ -31,6 +36,10 @@ interface EditorToolbarProps {
   onSelectColor: (color: EditorColor) => void;
   strokeWidth: StrokeWidthPreset;
   onSelectStrokeWidth: (width: StrokeWidthPreset) => void;
+  textFontSize: TextFontSizePreset;
+  onSelectTextFontSize: (size: TextFontSizePreset) => void;
+  textBackgroundStyle: TextBackgroundStyle;
+  onSelectTextBackgroundStyle: (style: TextBackgroundStyle) => void;
   hasDraftCrop: boolean;
   appliedCrop: CropRect | null;
   cropPixelSize: { width: number; height: number } | null;
@@ -61,6 +70,7 @@ const TOOL_ITEMS: ReadonlyArray<{
   { id: 'rect', label: '赤枠', icon: Square },
   { id: 'arrow', label: '矢印', icon: ArrowUpRight },
   { id: 'mosaic', label: 'モザイク', icon: Grid3x3 },
+  { id: 'text', label: 'テキスト', icon: Type },
 ];
 
 export function EditorToolbar({
@@ -70,6 +80,10 @@ export function EditorToolbar({
   onSelectColor,
   strokeWidth,
   onSelectStrokeWidth,
+  textFontSize,
+  onSelectTextFontSize,
+  textBackgroundStyle,
+  onSelectTextBackgroundStyle,
   hasDraftCrop,
   appliedCrop,
   cropPixelSize,
@@ -91,6 +105,7 @@ export function EditorToolbar({
   onCancel,
 }: EditorToolbarProps) {
   const isShapeTool = activeTool === 'rect' || activeTool === 'arrow';
+  const isTextTool = activeTool === 'text';
 
   return (
     <div className="border-b border-slate-700/80 bg-slate-900">
@@ -218,73 +233,139 @@ export function EditorToolbar({
       <div className="flex min-h-[46px] flex-wrap items-center justify-between gap-2 bg-slate-900/75 px-4 py-1.5">
         {/* 左側: 選択中ツールのオプション */}
         <div className="flex flex-wrap items-center gap-2">
-          {isShapeTool && (
-            <>
-              {/* 色セレクタ */}
-              <div
-                role="group"
-                aria-label="描画色"
-                className="flex min-h-[34px] items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-800/85 px-2 py-1"
-              >
-                {EDITOR_COLORS.map((item) => {
-                  const isSelected = color === item.value;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => onSelectColor(item.value)}
-                      aria-label={`色: ${item.label}`}
-                      aria-pressed={isSelected}
-                      title={item.label}
-                      className={`relative flex min-h-6 min-w-6 items-center justify-center rounded-full border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
-                        item.value === '#111827' ? 'border-slate-500' : 'border-white/20'
-                      } ${
-                        isSelected
-                          ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800'
-                          : 'hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: item.value }}
-                    />
-                  );
-                })}
-              </div>
+          {(isShapeTool || isTextTool) && (
+            <div
+              role="group"
+              aria-label={isTextTool ? '文字色' : '描画色'}
+              className="flex min-h-[34px] items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-800/85 px-2 py-1"
+            >
+              {EDITOR_COLORS.map((item) => {
+                const isSelected = color === item.value;
+                const borderClass =
+                  item.value === '#FFFFFF'
+                    ? 'border-slate-400'
+                    : item.value === '#111827'
+                    ? 'border-slate-500'
+                    : 'border-white/20';
+                const ringColorClass =
+                  item.value === '#FFFFFF' ? 'ring-indigo-400' : 'ring-white';
 
-              {/* 線の太さセレクタ */}
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onSelectColor(item.value)}
+                    aria-label={`色: ${item.label}`}
+                    aria-pressed={isSelected}
+                    title={item.label}
+                    className={`relative flex min-h-6 min-w-6 items-center justify-center rounded-full border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${borderClass} ${
+                      isSelected
+                        ? `ring-2 ${ringColorClass} ring-offset-2 ring-offset-slate-800`
+                        : 'hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: item.value }}
+                  />
+                );
+              })}
+            </div>
+          )}
+
+          {isShapeTool && (
+            <div
+              role="group"
+              aria-label="線の太さ"
+              className="flex min-h-[34px] items-center rounded-lg border border-slate-700/80 bg-slate-800/85 p-0.5"
+            >
+              {STROKE_WIDTH_PRESETS.map((preset) => {
+                const isSelected = strokeWidth === preset.id;
+                const dotSizeClass =
+                  preset.id === 'thin'
+                    ? 'h-1.5 w-1.5'
+                    : preset.id === 'medium'
+                    ? 'h-2 w-2'
+                    : 'h-2.5 w-2.5';
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => onSelectStrokeWidth(preset.id)}
+                    aria-pressed={isSelected}
+                    title={`線の太さ: ${preset.label}`}
+                    className={`inline-flex min-h-7 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
+                      isSelected
+                        ? 'bg-slate-700 text-white'
+                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block rounded-full bg-current ${dotSizeClass}`}
+                      aria-hidden="true"
+                    />
+                    <span>{preset.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {isTextTool && (
+            <>
+              {/* 文字サイズ */}
               <div
                 role="group"
-                aria-label="線の太さ"
+                aria-label="文字サイズ"
                 className="flex min-h-[34px] items-center rounded-lg border border-slate-700/80 bg-slate-800/85 p-0.5"
               >
-                {STROKE_WIDTH_PRESETS.map((preset) => {
-                  const isSelected = strokeWidth === preset.id;
-                  const dotSizeClass =
-                    preset.id === 'thin'
-                      ? 'h-1.5 w-1.5'
-                      : preset.id === 'medium'
-                      ? 'h-2 w-2'
-                      : 'h-2.5 w-2.5';
+                {TEXT_FONT_SIZE_PRESETS.map((preset) => {
+                  const isSelected = textFontSize === preset.id;
                   return (
                     <button
                       key={preset.id}
                       type="button"
-                      onClick={() => onSelectStrokeWidth(preset.id)}
+                      onClick={() => onSelectTextFontSize(preset.id)}
                       aria-pressed={isSelected}
-                      title={`線の太さ: ${preset.label}`}
-                      className={`inline-flex min-h-7 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
+                      title={`文字サイズ: ${preset.label}`}
+                      className={`inline-flex min-h-7 items-center rounded-md px-2 py-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
                         isSelected
                           ? 'bg-slate-700 text-white'
                           : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
                       }`}
                     >
-                      <span
-                        className={`inline-block rounded-full bg-current ${dotSizeClass}`}
-                        aria-hidden="true"
-                      />
-                      <span>{preset.label}</span>
+                      {preset.label}
                     </button>
                   );
                 })}
               </div>
+
+              {/* 読みやすさスタイル */}
+              <div
+                role="group"
+                aria-label="文字の背景スタイル"
+                className="flex min-h-[34px] items-center rounded-lg border border-slate-700/80 bg-slate-800/85 p-0.5"
+              >
+                {TEXT_BACKGROUND_STYLES.map((styleOpt) => {
+                  const isSelected = textBackgroundStyle === styleOpt.id;
+                  return (
+                    <button
+                      key={styleOpt.id}
+                      type="button"
+                      onClick={() => onSelectTextBackgroundStyle(styleOpt.id)}
+                      aria-pressed={isSelected}
+                      className={`inline-flex min-h-7 items-center rounded-md px-2 py-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
+                        isSelected
+                          ? 'bg-slate-700 text-white'
+                          : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                      }`}
+                    >
+                      {styleOpt.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <span className="hidden text-[11px] text-slate-400 xl:inline">
+                クリックで配置・ドラッグで移動
+              </span>
             </>
           )}
 

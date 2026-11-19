@@ -34,6 +34,9 @@ import type {
   EditorHistorySnapshot,
   EditorTool,
   StrokeWidthPreset,
+  TextAnnotation,
+  TextBackgroundStyle,
+  TextFontSizePreset,
 } from '../types/editor';
 
 interface LightboxModalProps {
@@ -96,6 +99,10 @@ export function LightboxModal({
   const [activeTool, setActiveTool] = useState<EditorTool>('rect');
   const [color, setColor] = useState<EditorColor>('#EF4444');
   const [strokeWidth, setStrokeWidth] = useState<StrokeWidthPreset>('medium');
+  const [textFontSize, setTextFontSize] = useState<TextFontSizePreset>('md');
+  const [textBackgroundStyle, setTextBackgroundStyle] =
+    useState<TextBackgroundStyle>('outline');
+  const [cancelTextSignal, setCancelTextSignal] = useState(0);
   const [annotations, setAnnotations] = useState<EditorAnnotation[]>([]);
   const [appliedCrop, setAppliedCrop] = useState<CropRect | null>(null);
   const [draftCrop, setDraftCrop] = useState<CropRect | null>(null);
@@ -110,7 +117,12 @@ export function LightboxModal({
 
   const isEditingRef = useRef(isEditing);
   const loadedImageRef = useRef<HTMLImageElement | null>(null);
-  const lastDrawToolRef = useRef<'rect' | 'arrow' | 'mosaic'>('rect');
+  const lastDrawToolRef = useRef<'rect' | 'arrow' | 'mosaic' | 'text'>('rect');
+  const isTextInputActiveRef = useRef(false);
+  const pendingTextRef = useRef<{
+    editingId: string | null;
+    annotation: TextAnnotation;
+  } | null>(null);
   const copyTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -131,6 +143,10 @@ export function LightboxModal({
     lastDrawToolRef.current = 'rect';
     setColor('#EF4444');
     setStrokeWidth('medium');
+    setTextFontSize('md');
+    setTextBackgroundStyle('outline');
+    isTextInputActiveRef.current = false;
+    pendingTextRef.current = null;
     setAnnotations([]);
     setAppliedCrop(null);
     setDraftCrop(null);
@@ -151,6 +167,10 @@ export function LightboxModal({
     lastDrawToolRef.current = 'rect';
     setColor('#EF4444');
     setStrokeWidth('medium');
+    setTextFontSize('md');
+    setTextBackgroundStyle('outline');
+    isTextInputActiveRef.current = false;
+    pendingTextRef.current = null;
     setZoom(1);
     setJustCopiedEdited(false);
     setIsEditing(true);
@@ -217,6 +237,11 @@ export function LightboxModal({
     dialog.addEventListener('close', handleNativeClose);
 
     const handleCancel = (event: Event) => {
+      if (isTextInputActiveRef.current) {
+        event.preventDefault();
+        setCancelTextSignal((n) => n + 1);
+        return;
+      }
       if (isEditingRef.current) {
         event.preventDefault();
         exitEditMode();
@@ -308,6 +333,46 @@ export function LightboxModal({
     [annotations, appliedCrop]
   );
 
+  const handleUpdateAnnotation = useCallback(
+    (id: string, updater: (prev: EditorAnnotation) => EditorAnnotation) => {
+      setUndoStack((prev) => [...prev, { annotations, appliedCrop }]);
+      setAnnotations((prev) =>
+        prev.map((item) => (item.id === id ? updater(item) : item))
+      );
+    },
+    [annotations, appliedCrop]
+  );
+
+  const handleDeleteAnnotation = useCallback(
+    (id: string) => {
+      setUndoStack((prev) => [...prev, { annotations, appliedCrop }]);
+      setAnnotations((prev) => prev.filter((item) => item.id !== id));
+    },
+    [annotations, appliedCrop]
+  );
+
+  const handleEditingTextChange = useCallback((isEditingText: boolean) => {
+    isTextInputActiveRef.current = isEditingText;
+  }, []);
+
+  const handlePendingTextChange = useCallback(
+    (pending: { editingId: string | null; annotation: TextAnnotation } | null) => {
+      pendingTextRef.current = pending;
+    },
+    []
+  );
+
+  const getAnnotationsForExport = useCallback((): EditorAnnotation[] => {
+    const pending = pendingTextRef.current;
+    if (!pending) return annotations;
+    if (pending.editingId !== null) {
+      return annotations.map((item) =>
+        item.id === pending.editingId ? pending.annotation : item
+      );
+    }
+    return [...annotations, pending.annotation];
+  }, [annotations]);
+
   const handleConfirmCrop = useCallback(() => {
     if (!draftCrop || draftCrop.width <= 0 || draftCrop.height <= 0) return;
     if (!isSameCropRect(draftCrop, appliedCrop)) {
@@ -330,6 +395,9 @@ export function LightboxModal({
 
   const handleUndo = useCallback(() => {
     if (undoStack.length === 0) return;
+    if (isTextInputActiveRef.current) {
+      setCancelTextSignal((n) => n + 1);
+    }
     const previous = undoStack[undoStack.length - 1];
     setUndoStack((prev) => prev.slice(0, -1));
     setAnnotations(previous.annotations);
@@ -339,8 +407,16 @@ export function LightboxModal({
   }, [activeTool, undoStack]);
 
   const handleClearAll = useCallback(() => {
-    if (annotations.length === 0 && appliedCrop === null && draftCrop === null) {
+    if (
+      annotations.length === 0 &&
+      appliedCrop === null &&
+      draftCrop === null &&
+      !isTextInputActiveRef.current
+    ) {
       return;
+    }
+    if (isTextInputActiveRef.current) {
+      setCancelTextSignal((n) => n + 1);
     }
     if (annotations.length > 0 || appliedCrop !== null) {
       setUndoStack((prev) => [...prev, { annotations, appliedCrop }]);
@@ -355,7 +431,7 @@ export function LightboxModal({
     if (!clip) return;
     copyEditedImageToClipboard(
       clip.imageBlob,
-      annotations,
+      getAnnotationsForExport(),
       effectiveCrop,
       loadedImageRef.current
     )
@@ -374,7 +450,7 @@ export function LightboxModal({
         const msg = err instanceof Error ? err.message : 'コピーに失敗しました';
         onNotify(msg, 'error');
       });
-  }, [annotations, clip, effectiveCrop, onNotify]);
+  }, [clip, effectiveCrop, getAnnotationsForExport, onNotify]);
 
   const handleSaveAsNew = useCallback(async () => {
     if (!clip || isSaving) return;
@@ -382,7 +458,7 @@ export function LightboxModal({
     try {
       const editedBlob = await renderEditedImageToBlob(
         clip.imageBlob,
-        annotations,
+        getAnnotationsForExport(),
         effectiveCrop,
         'image/png',
         undefined,
@@ -401,10 +477,10 @@ export function LightboxModal({
       setIsSaving(false);
     }
   }, [
-    annotations,
     clip,
     effectiveCrop,
     exitEditMode,
+    getAnnotationsForExport,
     isSaving,
     onNotify,
     onSaveEditedAsNew,
@@ -417,7 +493,7 @@ export function LightboxModal({
     try {
       const editedBlob = await renderEditedImageToBlob(
         clip.imageBlob,
-        annotations,
+        getAnnotationsForExport(),
         effectiveCrop,
         'image/png',
         undefined,
@@ -433,10 +509,10 @@ export function LightboxModal({
       setIsSaving(false);
     }
   }, [
-    annotations,
     clip,
     effectiveCrop,
     exitEditMode,
+    getAnnotationsForExport,
     isSaving,
     onNotify,
     onOverwriteEdited,
@@ -654,6 +730,10 @@ export function LightboxModal({
                 onSelectColor={setColor}
                 strokeWidth={strokeWidth}
                 onSelectStrokeWidth={setStrokeWidth}
+                textFontSize={textFontSize}
+                onSelectTextFontSize={setTextFontSize}
+                textBackgroundStyle={textBackgroundStyle}
+                onSelectTextBackgroundStyle={setTextBackgroundStyle}
                 hasDraftCrop={draftCrop !== null}
                 appliedCrop={appliedCrop}
                 cropPixelSize={cropPixelSize}
@@ -854,11 +934,18 @@ export function LightboxModal({
                 activeTool={activeTool}
                 color={color}
                 strokeWidth={strokeWidth}
+                textFontSize={textFontSize}
+                textBackgroundStyle={textBackgroundStyle}
+                cancelTextSignal={cancelTextSignal}
                 annotations={annotations}
                 appliedCrop={appliedCrop}
                 draftCrop={draftCrop}
                 onDraftCropChange={setDraftCrop}
                 onAddAnnotation={handleAddAnnotation}
+                onUpdateAnnotation={handleUpdateAnnotation}
+                onDeleteAnnotation={handleDeleteAnnotation}
+                onEditingTextChange={handleEditingTextChange}
+                onPendingTextChange={handlePendingTextChange}
                 onImageLoaded={handleImageLoaded}
               />
             ) : (
@@ -997,7 +1084,7 @@ export function LightboxModal({
           {isEditing ? (
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-700/80 bg-slate-900/95 px-4 py-2 text-[11px] text-slate-400">
               <span>
-                ドラッグで描画・範囲指定 · Ctrl+Z / ⌘Z 元に戻す · Ctrl+C / ⌘C コピー · Enter 切り抜き確定 · Esc キャンセル
+                ドラッグで描画・クリックでテキスト配置 · Ctrl+Z / ⌘Z 元に戻す · Ctrl+C / ⌘C コピー · Enter 確定 · Esc キャンセル
               </span>
               <span className="font-mono text-slate-500">
                 元画像: {clip.width} × {clip.height} px
