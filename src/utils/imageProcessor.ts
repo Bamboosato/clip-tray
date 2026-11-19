@@ -12,7 +12,7 @@ const WEBP_QUALITY = 0.85;
 /**
  * BlobまたはFileからHTMLImageElementを読み込む
  */
-function loadImageFromBlob(blob: Blob): Promise<HTMLImageElement> {
+export function loadImageFromBlob(blob: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
     const img = new Image();
@@ -53,7 +53,7 @@ function calculateDimensions(
 /**
  * Canvasから指定フォーマットのBlobを生成する（WebP非対応環境ではimage/pngにフォールバック）
  */
-function canvasToBlob(
+export function canvasToBlob(
   canvas: HTMLCanvasElement,
   mimeType: string,
   quality?: number

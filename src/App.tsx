@@ -312,6 +312,92 @@ export default function App() {
     [cancelClips, notify]
   );
 
+  const handleSaveEditedAsNew = useCallback(
+    async (sourceClip: ClipItem, editedBlob: Blob): Promise<ClipItem | null> => {
+      try {
+        const processed = await processIncomingImage(
+          editedBlob,
+          settings.maxImageDimension
+        );
+        const targetGroupId = groups.some((g) => g.id === sourceClip.groupId)
+          ? sourceClip.groupId
+          : (groups[0] ?? (await ensureDefaultGroup())).id;
+
+        const now = Date.now();
+        const expiresAt =
+          settings.retentionDays !== null
+            ? now + settings.retentionDays * 24 * 60 * 60 * 1000
+            : null;
+
+        const newItem: ClipItem = {
+          id: crypto.randomUUID(),
+          groupId: targetGroupId,
+          imageBlob: processed.imageBlob,
+          thumbnailBlob: processed.thumbnailBlob,
+          mimeType: processed.mimeType,
+          width: processed.width,
+          height: processed.height,
+          memo: sourceClip.memo,
+          ocrText: '',
+          ocrStatus: settings.autoOcr ? 'pending' : 'idle',
+          isPinned: false,
+          createdAt: now,
+          expiresAt,
+        };
+
+        await db.clips.add(newItem);
+        if (settings.autoOcr) {
+          enqueueClip(newItem.id, { priority: 'normal', silent: true });
+        }
+        notify('編集した画像を新規保存しました', 'success');
+        return newItem;
+      } catch (err) {
+        console.error(err);
+        notify('編集画像の新規保存に失敗しました', 'error');
+        return null;
+      }
+    },
+    [
+      enqueueClip,
+      groups,
+      notify,
+      settings.autoOcr,
+      settings.maxImageDimension,
+      settings.retentionDays,
+    ]
+  );
+
+  const handleOverwriteEdited = useCallback(
+    async (clipId: string, editedBlob: Blob): Promise<void> => {
+      const processed = await processIncomingImage(
+        editedBlob,
+        settings.maxImageDimension
+      );
+      cancelClips([clipId]);
+      await db.clips.update(clipId, {
+        imageBlob: processed.imageBlob,
+        thumbnailBlob: processed.thumbnailBlob,
+        mimeType: processed.mimeType,
+        width: processed.width,
+        height: processed.height,
+        ocrText: '',
+        ocrStatus: settings.autoOcr ? 'pending' : 'idle',
+        ocrError: undefined,
+      });
+      if (settings.autoOcr) {
+        enqueueClip(clipId, { priority: 'normal', silent: true });
+      }
+      notify('画像を上書き保存しました', 'success');
+    },
+    [
+      cancelClips,
+      enqueueClip,
+      notify,
+      settings.autoOcr,
+      settings.maxImageDimension,
+    ]
+  );
+
   const handleChangeRetentionDays = useCallback(
     async (retentionDays: AppSettings['retentionDays']) => {
       updateSettings({ retentionDays });
@@ -450,6 +536,8 @@ export default function App() {
         onDelete={handleDeleteClip}
         onRunOcr={handleRunOcr}
         onUpdateOcrText={handleUpdateOcrText}
+        onSaveEditedAsNew={handleSaveEditedAsNew}
+        onOverwriteEdited={handleOverwriteEdited}
         onNotify={notify}
       />
 

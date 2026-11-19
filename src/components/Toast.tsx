@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { CheckCircle2, Info, AlertCircle, X } from 'lucide-react';
 import type { ToastMessage } from '../types';
 
@@ -6,13 +7,40 @@ interface ToastContainerProps {
   onDismiss: (id: string) => void;
 }
 
+const supportsPopover =
+  typeof HTMLElement !== 'undefined' && 'showPopover' in HTMLElement.prototype;
+
 export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
-  if (toasts.length === 0) return null;
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!supportsPopover) return;
+    const el = containerRef.current as
+      | (HTMLDivElement & { showPopover: () => void; hidePopover: () => void })
+      | null;
+    if (!el) return;
+
+    try {
+      if (toasts.length > 0) {
+        // showModal() で開かれた <dialog> よりも Top Layer の最前面へ表示させる
+        if (el.matches(':popover-open')) {
+          el.hidePopover();
+        }
+        el.showPopover();
+      } else if (el.matches(':popover-open')) {
+        el.hidePopover();
+      }
+    } catch {
+      // Popover API の状態遷移が競合した場合は通常固定配置にフォールバック
+    }
+  }, [toasts]);
 
   return (
     <div
+      ref={containerRef}
+      {...(supportsPopover ? ({ popover: 'manual' } as Record<string, string>) : {})}
       aria-live="polite"
-      className="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col gap-2"
+      className="pointer-events-none fixed inset-auto right-4 bottom-4 z-50 m-0 flex flex-col gap-2 overflow-visible border-0 bg-transparent p-0 text-inherit"
     >
       {toasts.map((toast) => {
         const Icon =
