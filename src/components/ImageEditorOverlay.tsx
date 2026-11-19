@@ -815,10 +815,10 @@ export function ImageEditorOverlay({
     <div
       ref={containerRef}
       onWheel={onWheelZoom}
-      className="relative flex min-h-0 min-w-0 flex-1 overflow-auto bg-slate-950 p-4 select-none"
+      className="lightbox-stage-bg relative flex min-h-0 min-w-0 flex-1 overflow-auto p-4 select-none"
     >
       <div
-        className="relative m-auto shrink-0 overflow-hidden rounded-sm bg-slate-950 shadow-2xl ring-1 ring-slate-800"
+        className="relative m-auto shrink-0 overflow-hidden rounded-sm bg-slate-950 shadow-[0_12px_40px_rgba(0,0,0,0.7)] ring-1 ring-slate-400/35"
         style={{ width: displayWidth, height: displayHeight }}
       >
         <img

@@ -13,8 +13,8 @@
   dialog::backdrop {
     overflow: hidden;
     overscroll-behavior: contain;
-    background-color: rgba(2, 6, 23, 0.78);
-    backdrop-filter: blur(4px);
+    background-color: rgba(0, 2, 10, 0.82);
+    backdrop-filter: blur(8px);
   }
 
   /* Hide native browser clear button on search inputs so custom React clear button doesn't duplicate */
@@ -22,5 +22,13 @@
   input[type="search"]::-webkit-search-cancel-button {
     -webkit-appearance: none;
     appearance: none;
+  }
+}
+
+@layer components {
+  .lightbox-stage-bg {
+    background-color: #0b1222;
+    background-image: repeating-conic-gradient(#111b31 0 25%, #0b1222 0 50%);
+    background-size: 20px 20px;
   }
 }

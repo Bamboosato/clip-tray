@@ -93,14 +93,14 @@ export function EditorToolbar({
   const isShapeTool = activeTool === 'rect' || activeTool === 'arrow';
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-950/95 px-4 py-2.5">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/80 bg-slate-900 px-4 py-2.5">
       {/* 左側: 描画ツール・色・太さ・Undo/クリア・ズーム */}
       <div className="flex flex-wrap items-center gap-2">
         {/* ツール選択 */}
         <div
           role="group"
           aria-label="編集ツール"
-          className="flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5"
+          className="flex items-center rounded-lg border border-slate-700/80 bg-slate-800/85 p-0.5"
         >
           {TOOL_ITEMS.map(({ id, label, icon: Icon }) => {
             const isActive = activeTool === id;
@@ -125,7 +125,7 @@ export function EditorToolbar({
 
         {/* 切り抜きコンテキスト操作 */}
         {activeTool === 'crop' && (
-          <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/90 px-1.5 py-0.5">
+          <div className="flex items-center gap-1 rounded-lg border border-slate-700/80 bg-slate-800/85 px-1.5 py-0.5">
             <button
               type="button"
               onClick={onConfirmCrop}
@@ -175,7 +175,7 @@ export function EditorToolbar({
         <div
           role="group"
           aria-label="描画色"
-          className={`flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 transition-opacity ${
+          className={`flex items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-800/85 px-2 py-1 transition-opacity ${
             isShapeTool ? 'opacity-100' : 'opacity-50 hover:opacity-100'
           }`}
         >
@@ -193,7 +193,7 @@ export function EditorToolbar({
                   item.value === '#111827' ? 'border-slate-500' : 'border-white/20'
                 } ${
                   isSelected
-                    ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900'
+                    ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800'
                     : 'hover:scale-105'
                 }`}
                 style={{ backgroundColor: item.value }}
@@ -206,7 +206,7 @@ export function EditorToolbar({
         <div
           role="group"
           aria-label="線の太さ"
-          className={`flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5 transition-opacity ${
+          className={`flex items-center rounded-lg border border-slate-700/80 bg-slate-800/85 p-0.5 transition-opacity ${
             isShapeTool ? 'opacity-100' : 'opacity-50 hover:opacity-100'
           }`}
         >
@@ -242,14 +242,14 @@ export function EditorToolbar({
         </div>
 
         {/* Undo / すべてクリア */}
-        <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 p-0.5">
+        <div className="flex items-center gap-1 rounded-lg border border-slate-700/80 bg-slate-800/85 p-0.5">
           <button
             type="button"
             onClick={onUndo}
             disabled={!canUndo}
             title="元に戻す (Ctrl+Z / ⌘Z)"
             aria-label="元に戻す"
-            className="inline-flex min-h-7 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+            className="inline-flex min-h-7 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
           >
             <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />
             <span className="hidden sm:inline">戻す</span>
@@ -259,7 +259,7 @@ export function EditorToolbar({
             onClick={onClearAll}
             disabled={!hasChanges}
             title="すべてクリア"
-            className="inline-flex min-h-7 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-300 transition hover:bg-slate-800 hover:text-rose-300 disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+            className="inline-flex min-h-7 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-300 transition hover:bg-slate-700 hover:text-rose-300 disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
           >
             <Eraser className="h-3.5 w-3.5" aria-hidden="true" />
             <span className="hidden sm:inline">クリア</span>
@@ -267,13 +267,13 @@ export function EditorToolbar({
         </div>
 
         {/* ズームコントロール */}
-        <div className="flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5">
+        <div className="flex items-center rounded-lg border border-slate-700/80 bg-slate-800/85 p-0.5">
           <button
             type="button"
             onClick={onZoomOut}
             title="縮小"
             aria-label="縮小"
-            className="min-h-6 min-w-6 rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+            className="min-h-6 min-w-6 rounded p-1 text-slate-300 hover:bg-slate-700 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
           >
             <ZoomOut className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
@@ -285,7 +285,7 @@ export function EditorToolbar({
             onClick={onZoomIn}
             title="拡大"
             aria-label="拡大"
-            className="min-h-6 min-w-6 rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+            className="min-h-6 min-w-6 rounded p-1 text-slate-300 hover:bg-slate-700 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
           >
             <ZoomIn className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
@@ -294,7 +294,7 @@ export function EditorToolbar({
             onClick={onZoomReset}
             title="100%にリセット"
             aria-label="100%にリセット"
-            className="min-h-6 min-w-6 rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+            className="min-h-6 min-w-6 rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
           >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
@@ -330,7 +330,7 @@ export function EditorToolbar({
           type="button"
           onClick={onSaveAsNew}
           disabled={isSaving}
-          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-slate-800 hover:text-white disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-800/85 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-slate-700 hover:text-white disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
         >
           {isSaving ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -344,7 +344,7 @@ export function EditorToolbar({
           type="button"
           onClick={onOverwrite}
           disabled={isSaving}
-          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-slate-800 hover:text-white disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-800/85 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-slate-700 hover:text-white disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
         >
           {isSaving ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -358,7 +358,7 @@ export function EditorToolbar({
           type="button"
           onClick={onCancel}
           title="編集をキャンセル (Esc)"
-          className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+          className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-700/80 bg-slate-800/85 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
         >
           <X className="h-3.5 w-3.5" aria-hidden="true" />
           <span>キャンセル</span>

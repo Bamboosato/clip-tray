@@ -630,7 +630,11 @@ export function LightboxModal({
       ref={dialogRef}
       aria-labelledby={titleId}
       {...({ closedby: isEditing ? 'closerequest' : 'any' } as Record<string, string>)}
-      className="m-auto h-[92dvh] w-[94dvw] max-w-6xl rounded-2xl border border-slate-800 bg-slate-950/95 p-0 text-slate-100 shadow-2xl open:flex open:flex-col"
+      className={`m-auto h-[92dvh] w-[94dvw] max-w-6xl rounded-2xl bg-slate-900 p-0 text-slate-100 open:flex open:flex-col ${
+        isEditing
+          ? 'border border-indigo-400/60 ring-1 ring-indigo-400/25 shadow-[0_24px_70px_-12px_rgba(0,0,0,0.88),0_0_0_1px_rgba(129,140,248,0.28)]'
+          : 'border border-slate-600/80 ring-1 ring-white/10 shadow-[0_24px_70px_-12px_rgba(0,0,0,0.88),0_0_0_1px_rgba(148,163,184,0.18)]'
+      }`}
     >
       {clip && (
         <>
@@ -681,12 +685,12 @@ export function LightboxModal({
             </>
           ) : (
             /* トップツールバー（通常プレビュー） */
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-4 py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/80 bg-slate-900 px-4 py-2.5">
               <div className="flex items-center gap-3">
                 <h2 id={titleId} className="text-xs font-semibold text-slate-200 sm:text-sm">
                   プレビュー ({currentIndex + 1} / {clips.length})
                 </h2>
-                <span className="rounded bg-slate-900 px-2 py-0.5 text-xs text-slate-400 ring-1 ring-slate-800">
+                <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-slate-700">
                   {clip.width} × {clip.height} px
                 </span>
                 <span className="hidden text-[11px] text-slate-400 md:inline">
@@ -696,7 +700,7 @@ export function LightboxModal({
 
               <div className="flex flex-wrap items-center gap-1.5">
                 {/* ズームコントロール */}
-                <div className="flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5">
+                <div className="flex items-center rounded-lg border border-slate-700/80 bg-slate-800/90 p-0.5">
                   <button
                     type="button"
                     onClick={() =>
@@ -704,7 +708,7 @@ export function LightboxModal({
                     }
                     title="縮小"
                     aria-label="縮小"
-                    className="rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-white"
+                    className="rounded p-1 text-slate-300 hover:bg-slate-700 hover:text-white"
                   >
                     <ZoomOut className="h-3.5 w-3.5" />
                   </button>
@@ -718,7 +722,7 @@ export function LightboxModal({
                     }
                     title="拡大"
                     aria-label="拡大"
-                    className="rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-white"
+                    className="rounded p-1 text-slate-300 hover:bg-slate-700 hover:text-white"
                   >
                     <ZoomIn className="h-3.5 w-3.5" />
                   </button>
@@ -727,7 +731,7 @@ export function LightboxModal({
                     onClick={() => setZoom(1)}
                     title="100%にリセット"
                     aria-label="100%にリセット"
-                    className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                    className="rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-white"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                   </button>
@@ -739,7 +743,7 @@ export function LightboxModal({
                   onClick={enterEditMode}
                   disabled={!fullImageUrl}
                   title="クイック編集モード (E)"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:border-indigo-500/50 hover:bg-slate-800 hover:text-white disabled:pointer-events-none disabled:opacity-40"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-800/90 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:border-indigo-500/50 hover:bg-slate-700 hover:text-white disabled:pointer-events-none disabled:opacity-40"
                 >
                   <Pencil className="h-3.5 w-3.5 text-indigo-400" />
                   <span>編集</span>
@@ -753,7 +757,7 @@ export function LightboxModal({
                   className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
                     isOcrPanelOpen
                       ? 'border-indigo-500/50 bg-indigo-500/20 text-indigo-200'
-                      : 'border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white'
+                      : 'border-slate-700/80 bg-slate-800/90 text-slate-300 hover:bg-slate-700 hover:text-white'
                   }`}
                 >
                   {isOcrRunning ? (
@@ -783,7 +787,7 @@ export function LightboxModal({
                   className={`rounded-lg border p-1.5 transition ${
                     clip.isPinned
                       ? 'border-amber-500/40 bg-amber-500/20 text-amber-300'
-                      : 'border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800'
+                      : 'border-slate-700/80 bg-slate-800/90 text-slate-300 hover:bg-slate-700'
                   }`}
                 >
                   <Pin className="h-4 w-4" />
@@ -795,7 +799,7 @@ export function LightboxModal({
                   onClick={handleDownload}
                   title="ダウンロード"
                   aria-label="ダウンロード"
-                  className="rounded-lg border border-slate-800 bg-slate-900 p-1.5 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                  className="rounded-lg border border-slate-700/80 bg-slate-800/90 p-1.5 text-slate-300 transition hover:bg-slate-700 hover:text-white"
                 >
                   <Download className="h-4 w-4" />
                 </button>
@@ -819,7 +823,7 @@ export function LightboxModal({
                   }}
                   title="この画像を削除"
                   aria-label="この画像を削除"
-                  className="rounded-lg border border-slate-800 bg-slate-900 p-1.5 text-slate-300 transition hover:border-rose-500/40 hover:bg-rose-950/60 hover:text-rose-300"
+                  className="rounded-lg border border-slate-700/80 bg-slate-800/90 p-1.5 text-slate-300 transition hover:border-rose-500/40 hover:bg-rose-950/60 hover:text-rose-300"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -829,7 +833,7 @@ export function LightboxModal({
                   type="button"
                   onClick={onClose}
                   aria-label="プレビューを閉じる"
-                  className="ml-1 rounded-lg border border-slate-800 bg-slate-900 p-1.5 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                  className="ml-1 rounded-lg border border-slate-700/80 bg-slate-800/90 p-1.5 text-slate-300 transition hover:bg-slate-700 hover:text-white"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -861,7 +865,7 @@ export function LightboxModal({
               /* 通常画像ビューア領域 */
               <div
                 onWheel={handleWheel}
-                className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto bg-slate-950 p-4 select-none"
+                className="lightbox-stage-bg relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto p-4 select-none"
               >
                 {hasPrev && (
                   <button
@@ -882,7 +886,7 @@ export function LightboxModal({
                       transform: `scale(${zoom})`,
                       transformOrigin: 'center center',
                     }}
-                    className="block max-h-full max-w-full object-contain transition-transform duration-100"
+                    className="block max-h-full max-w-full rounded-xs object-contain shadow-[0_12px_36px_rgba(0,0,0,0.65)] ring-1 ring-slate-400/30 transition-transform duration-100"
                   />
                 ) : (
                   <div className="text-sm text-slate-500">読み込み中...</div>
@@ -903,8 +907,8 @@ export function LightboxModal({
 
             {/* OCR抽出テキスト閲覧・編集・コピーパネル（編集モード中は非表示） */}
             {!isEditing && isOcrPanelOpen && (
-              <aside className="flex max-h-[40%] w-full shrink-0 flex-col border-t border-slate-800 bg-slate-900/85 lg:max-h-none lg:w-88 lg:border-t-0 lg:border-l">
-                <div className="flex items-center justify-between gap-2 border-b border-slate-800 px-3.5 py-2.5">
+              <aside className="flex max-h-[40%] w-full shrink-0 flex-col border-t border-slate-700/80 bg-slate-900/95 lg:max-h-none lg:w-88 lg:border-t-0 lg:border-l">
+                <div className="flex items-center justify-between gap-2 border-b border-slate-700/80 px-3.5 py-2.5">
                   <div className="flex items-center gap-2">
                     <ScanText className="h-4 w-4 text-indigo-400" />
                     <h3 className="text-xs font-semibold text-slate-200">
@@ -991,7 +995,7 @@ export function LightboxModal({
 
           {/* ボトムバー */}
           {isEditing ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 bg-slate-900/70 px-4 py-2 text-[11px] text-slate-400">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-700/80 bg-slate-900/95 px-4 py-2 text-[11px] text-slate-400">
               <span>
                 ドラッグで描画・範囲指定 · Ctrl+Z / ⌘Z 元に戻す · Ctrl+C / ⌘C コピー · Enter 切り抜き確定 · Esc キャンセル
               </span>
@@ -1000,7 +1004,7 @@ export function LightboxModal({
               </span>
             </div>
           ) : (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 bg-slate-900/70 px-4 py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-700/80 bg-slate-900/95 px-4 py-2.5">
               <div className="flex flex-1 items-center gap-2">
                 <label htmlFor="lightbox-memo" className="text-xs font-medium text-slate-400">
                   メモ:
