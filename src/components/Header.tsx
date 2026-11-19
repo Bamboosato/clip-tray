@@ -1,6 +1,5 @@
 import { useRef } from 'react';
 import {
-  Camera,
   Grid2X2,
   Grid3X3,
   LayoutGrid,
@@ -54,23 +53,17 @@ export function Header({
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        {/* ブランドロゴ & ショートカット案内 */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600/20 text-indigo-400 ring-1 ring-indigo-500/30">
-            <Camera className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold tracking-tight text-slate-100">ClipTray</h1>
-              <span className="hidden rounded-md bg-slate-800/90 px-2 py-0.5 text-[11px] font-medium text-slate-400 ring-1 ring-slate-700/70 sm:inline-block">
-                Ctrl+V / ⌘V で即保存
-              </span>
-            </div>
-            <p className="text-xs text-slate-400">
-              一時スクショ仮置き場・ローカル完結
-            </p>
-          </div>
+      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+        {/* ブランドロゴ */}
+        <div className="flex items-center gap-2.5">
+          <img
+            src="/favicon.svg"
+            alt=""
+            width={32}
+            height={32}
+            className="block h-8 w-8 shrink-0 rounded-lg"
+          />
+          <h1 className="text-base font-bold tracking-tight text-slate-100">ClipTray</h1>
         </div>
 
         {/* 検索バー */}
@@ -110,6 +103,7 @@ export function Header({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
+            title="画像ファイルを選択（画面上で Ctrl+V / ⌘V でも即保存）"
             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-500 active:scale-[0.99] sm:text-sm"
           >
             <Plus className="h-4 w-4" />
