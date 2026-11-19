@@ -1,0 +1,564 @@
+import { useEffect, useId, useRef, useState } from 'react';
+import {
+  AlertCircle,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Download,
+  FolderInput,
+  Loader2,
+  Pin,
+  RotateCcw,
+  ScanText,
+  Trash2,
+  X,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
+import { useObjectUrl } from '../hooks/useObjectUrl';
+import { copyImageBlobToClipboard } from '../utils/imageProcessor';
+import type { ActiveOcrJob } from '../hooks/useOcrQueue';
+import type { ClipItem, Group } from '../types';
+
+interface LightboxModalProps {
+  clip: ClipItem | null;
+  clips: ClipItem[];
+  groups: Group[];
+  activeOcrJob: ActiveOcrJob | null;
+  onClose: () => void;
+  onSelectClip: (clip: ClipItem) => void;
+  onTogglePin: (clip: ClipItem) => Promise<void>;
+  onUpdateMemo: (clipId: string, memo: string) => Promise<void>;
+  onMoveGroup: (clipId: string, targetGroupId: string) => Promise<void>;
+  onDelete: (clipId: string) => Promise<void>;
+  onRunOcr: (clipId: string) => void;
+  onUpdateOcrText: (clipId: string, ocrText: string) => Promise<void>;
+  onNotify: (message: string, type?: 'success' | 'info' | 'error') => void;
+}
+
+export function LightboxModal({
+  clip,
+  clips,
+  groups,
+  activeOcrJob,
+  onClose,
+  onSelectClip,
+  onTogglePin,
+  onUpdateMemo,
+  onMoveGroup,
+  onDelete,
+  onRunOcr,
+  onUpdateOcrText,
+  onNotify,
+}: LightboxModalProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const fullImageUrl = useObjectUrl(clip?.imageBlob);
+  const [zoom, setZoom] = useState(1);
+  const [memoDraft, setMemoDraft] = useState('');
+  const [ocrDraft, setOcrDraft] = useState('');
+  const [isOcrPanelOpen, setIsOcrPanelOpen] = useState(false);
+  const [justCopiedText, setJustCopiedText] = useState(false);
+
+  // クリップ切り替え時にズーム・パネル初期開閉状態をリセット
+  useEffect(() => {
+    setZoom(1);
+    setJustCopiedText(false);
+    setIsOcrPanelOpen(
+      Boolean(clip?.ocrText?.trim()) ||
+        clip?.ocrStatus === 'pending' ||
+        clip?.ocrStatus === 'processing' ||
+        clip?.ocrStatus === 'error'
+    );
+  }, [clip?.id]);
+
+  // メモ・抽出テキストの同期（バックグラウンドOCR完了時も反映）
+  useEffect(() => {
+    setMemoDraft(clip?.memo ?? '');
+  }, [clip?.id, clip?.memo]);
+
+  useEffect(() => {
+    setOcrDraft(clip?.ocrText ?? '');
+  }, [clip?.id, clip?.ocrText]);
+
+  // ネイティブ <dialog> の showModal() / close() 同期
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (clip) {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+    } else if (dialog.open) {
+      dialog.close();
+    }
+  }, [clip]);
+
+  // closedby 未対応ブラウザ（Safari等）向けバックドロップクリック Light-dismiss フォールバック
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const handleNativeClose = () => {
+      onClose();
+    };
+    dialog.addEventListener('close', handleNativeClose);
+
+    const supportsClosedBy = 'closedBy' in HTMLDialogElement.prototype;
+    const handleBackdropClick = (event: MouseEvent) => {
+      if (supportsClosedBy) return;
+      if (event.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const isInDialog =
+        rect.top <= event.clientY &&
+        event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX &&
+        event.clientX <= rect.left + rect.width;
+      if (!isInDialog) {
+        dialog.close();
+      }
+    };
+
+    dialog.addEventListener('click', handleBackdropClick);
+    return () => {
+      dialog.removeEventListener('close', handleNativeClose);
+      dialog.removeEventListener('click', handleBackdropClick);
+    };
+  }, [onClose]);
+
+  const currentIndex = clip ? clips.findIndex((c) => c.id === clip.id) : -1;
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex >= 0 && currentIndex < clips.length - 1;
+
+  // キーボードナビゲーション（左右矢印キーで前後移動、Ctrl+C / Cmd+C でPNGコピー）
+  useEffect(() => {
+    if (!clip) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInputFocused =
+        activeEl instanceof HTMLInputElement ||
+        activeEl instanceof HTMLTextAreaElement ||
+        activeEl instanceof HTMLSelectElement;
+
+      if (!isInputFocused && e.key === 'ArrowLeft' && hasPrev) {
+        e.preventDefault();
+        onSelectClip(clips[currentIndex - 1]);
+        return;
+      }
+
+      if (!isInputFocused && e.key === 'ArrowRight' && hasNext) {
+        e.preventDefault();
+        onSelectClip(clips[currentIndex + 1]);
+        return;
+      }
+
+      // Ctrl + C / Cmd + C でクリップボードへ画像を再コピー（ユーザージェスチャー同期コンテキスト内）
+      if (!isInputFocused && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        const selection = window.getSelection();
+        if (selection && selection.toString().length > 0) {
+          return;
+        }
+        e.preventDefault();
+        copyImageBlobToClipboard(clip.imageBlob)
+          .then(() => {
+            onNotify('クリップボードに画像をコピーしました (PNG)', 'success');
+          })
+          .catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : 'コピーに失敗しました';
+            onNotify(msg, 'error');
+          });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [clip, clips, currentIndex, hasNext, hasPrev, onNotify, onSelectClip]);
+
+  const handleCopy = () => {
+    if (!clip) return;
+    copyImageBlobToClipboard(clip.imageBlob)
+      .then(() => {
+        onNotify('クリップボードに画像をコピーしました (PNG)', 'success');
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'コピーに失敗しました';
+        onNotify(msg, 'error');
+      });
+  };
+
+  const handleCopyOcrText = () => {
+    const trimmed = ocrDraft.trim();
+    if (!trimmed) return;
+    if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+      onNotify('このブラウザはテキストのクリップボードコピーに対応していません', 'error');
+      return;
+    }
+    navigator.clipboard
+      .writeText(ocrDraft)
+      .then(() => {
+        setJustCopiedText(true);
+        onNotify('抽出テキストをコピーしました', 'success');
+        setTimeout(() => setJustCopiedText(false), 1800);
+      })
+      .catch(() => {
+        onNotify('抽出テキストのコピーに失敗しました', 'error');
+      });
+  };
+
+  const handleDownload = () => {
+    if (!clip) return;
+    const url = URL.createObjectURL(clip.imageBlob);
+    const ext = clip.mimeType === 'image/png' ? 'png' : 'webp';
+    const filename = `clip-${new Date(clip.createdAt)
+      .toISOString()
+      .slice(0, 19)
+      .replace(/[:T]/g, '-')}.${ext}`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.2 : -0.2;
+    setZoom((prev) => Math.min(4, Math.max(0.25, Number((prev + delta).toFixed(2)))));
+  };
+
+  const isOcrRunning =
+    clip?.ocrStatus === 'pending' || clip?.ocrStatus === 'processing';
+  const currentProgress =
+    clip && activeOcrJob?.clipId === clip.id ? activeOcrJob : null;
+  const progressValue = currentProgress?.progress ?? 0;
+  const progressLabel =
+    currentProgress?.statusLabel ??
+    (clip?.ocrStatus === 'pending' ? '待機中' : '文字抽出中');
+
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby={titleId}
+      {...({ closedby: 'any' } as Record<string, string>)}
+      className="m-auto h-[92dvh] w-[94dvw] max-w-6xl rounded-2xl border border-slate-800 bg-slate-950/95 p-0 text-slate-100 shadow-2xl open:flex open:flex-col"
+    >
+      {clip && (
+        <>
+          {/* トップツールバー */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-4 py-2.5">
+            <div className="flex items-center gap-3">
+              <h2 id={titleId} className="text-xs font-semibold text-slate-200 sm:text-sm">
+                プレビュー ({currentIndex + 1} / {clips.length})
+              </h2>
+              <span className="rounded bg-slate-900 px-2 py-0.5 text-xs text-slate-400 ring-1 ring-slate-800">
+                {clip.width} × {clip.height} px
+              </span>
+              <span className="hidden text-[11px] text-slate-400 md:inline">
+                Ctrl+C / ⌘C でコピー · ← → キーで移動
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              {/* ズームコントロール */}
+              <div className="flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => Math.max(0.25, Number((z - 0.25).toFixed(2))))}
+                  title="縮小"
+                  className="rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-white"
+                >
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </button>
+                <span className="min-w-[46px] text-center text-xs font-medium text-slate-300">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => Math.min(4, Number((z + 0.25).toFixed(2))))}
+                  title="拡大"
+                  className="rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-white"
+                >
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoom(1)}
+                  title="100%にリセット"
+                  className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* OCRテキストパネル切り替えボタン */}
+              <button
+                type="button"
+                onClick={() => setIsOcrPanelOpen((v) => !v)}
+                aria-pressed={isOcrPanelOpen}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+                  isOcrPanelOpen
+                    ? 'border-indigo-500/50 bg-indigo-500/20 text-indigo-200'
+                    : 'border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                {isOcrRunning ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-400" />
+                ) : (
+                  <ScanText className="h-3.5 w-3.5" />
+                )}
+                <span>{clip.ocrText?.trim() ? '抽出テキスト' : '文字抽出'}</span>
+              </button>
+
+              {/* コピーボタン */}
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-500"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                <span>PNGコピー</span>
+              </button>
+
+              {/* ピン留め */}
+              <button
+                type="button"
+                onClick={() => void onTogglePin(clip)}
+                title={clip.isPinned ? 'ピン留め解除' : 'ピン留め'}
+                className={`rounded-lg border p-1.5 transition ${
+                  clip.isPinned
+                    ? 'border-amber-500/40 bg-amber-500/20 text-amber-300'
+                    : 'border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <Pin className="h-4 w-4" />
+              </button>
+
+              {/* ダウンロード */}
+              <button
+                type="button"
+                onClick={handleDownload}
+                title="ダウンロード"
+                className="rounded-lg border border-slate-800 bg-slate-900 p-1.5 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+              >
+                <Download className="h-4 w-4" />
+              </button>
+
+              {/* 削除 */}
+              <button
+                type="button"
+                onClick={async () => {
+                  const nextClip =
+                    hasNext ? clips[currentIndex + 1] : hasPrev ? clips[currentIndex - 1] : null;
+                  await onDelete(clip.id);
+                  if (nextClip) {
+                    onSelectClip(nextClip);
+                  } else {
+                    onClose();
+                  }
+                }}
+                title="この画像を削除"
+                className="rounded-lg border border-slate-800 bg-slate-900 p-1.5 text-slate-300 transition hover:border-rose-500/40 hover:bg-rose-950/60 hover:text-rose-300"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+
+              {/* 閉じるボタン */}
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="プレビューを閉じる"
+                className="ml-1 rounded-lg border border-slate-800 bg-slate-900 p-1.5 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* メイン領域（画像ビューア + OCRテキストサイドパネル） */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-clip lg:flex-row">
+            {/* 画像ビューア領域 */}
+            <div
+              onWheel={handleWheel}
+              className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto bg-slate-950 p-4 select-none"
+            >
+              {hasPrev && (
+                <button
+                  type="button"
+                  onClick={() => onSelectClip(clips[currentIndex - 1])}
+                  aria-label="前の画像"
+                  className="absolute left-4 z-10 rounded-full border border-slate-700/80 bg-slate-900/90 p-2.5 text-slate-200 shadow-lg backdrop-blur-md transition hover:bg-slate-800 hover:text-white"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              )}
+
+              {fullImageUrl ? (
+                <img
+                  src={fullImageUrl}
+                  alt={clip.memo || 'プレビュー画像'}
+                  style={{
+                    transform: `scale(${zoom})`,
+                    transformOrigin: 'center center',
+                  }}
+                  className="block max-h-full max-w-full object-contain transition-transform duration-100"
+                />
+              ) : (
+                <div className="text-sm text-slate-500">読み込み中...</div>
+              )}
+
+              {hasNext && (
+                <button
+                  type="button"
+                  onClick={() => onSelectClip(clips[currentIndex + 1])}
+                  aria-label="次の画像"
+                  className="absolute right-4 z-10 rounded-full border border-slate-700/80 bg-slate-900/90 p-2.5 text-slate-200 shadow-lg backdrop-blur-md transition hover:bg-slate-800 hover:text-white"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+
+            {/* OCR抽出テキスト閲覧・編集・コピーパネル */}
+            {isOcrPanelOpen && (
+              <aside className="flex max-h-[40%] w-full shrink-0 flex-col border-t border-slate-800 bg-slate-900/85 lg:max-h-none lg:w-88 lg:border-t-0 lg:border-l">
+                <div className="flex items-center justify-between gap-2 border-b border-slate-800 px-3.5 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <ScanText className="h-4 w-4 text-indigo-400" />
+                    <h3 className="text-xs font-semibold text-slate-200">
+                      抽出テキスト (OCR)
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleCopyOcrText}
+                      disabled={!ocrDraft.trim()}
+                      className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 transition hover:bg-slate-700 disabled:pointer-events-none disabled:opacity-40"
+                    >
+                      {justCopiedText ? (
+                        <>
+                          <Check className="h-3 w-3 text-emerald-400" />
+                          <span>コピー済</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" />
+                          <span>テキストをコピー</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onRunOcr(clip.id)}
+                      disabled={isOcrRunning}
+                      className="inline-flex items-center gap-1 rounded-md bg-indigo-600/90 px-2 py-1 text-[11px] font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-wait disabled:opacity-60"
+                    >
+                      {isOcrRunning && <Loader2 className="h-3 w-3 animate-spin" />}
+                      <span>{clip.ocrText?.trim() ? '再抽出' : '抽出'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {isOcrRunning && (
+                  <div className="space-y-1.5 border-b border-slate-800 bg-indigo-950/30 px-3.5 py-2">
+                    <div className="flex items-center justify-between text-[11px] text-indigo-200">
+                      <span>{progressLabel}</span>
+                      <span className="font-mono">{Math.round(progressValue * 100)}%</span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-clip rounded-full bg-slate-800">
+                      <div
+                        className="h-full rounded-full bg-indigo-500 transition-all duration-150"
+                        style={{ width: `${Math.max(6, Math.round(progressValue * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {clip.ocrStatus === 'error' && (
+                  <div className="flex items-start gap-2 border-b border-rose-500/30 bg-rose-950/40 px-3.5 py-2 text-[11px] text-rose-200">
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-400" />
+                    <div className="flex-1">
+                      <p>文字抽出に失敗しました: {clip.ocrError ?? '不明なエラー'}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex min-h-0 flex-1 flex-col p-3">
+                  <textarea
+                    value={ocrDraft}
+                    onChange={(e) => setOcrDraft(e.target.value)}
+                    onBlur={() => {
+                      if (ocrDraft !== (clip.ocrText ?? '')) {
+                        void onUpdateOcrText(clip.id, ocrDraft);
+                      }
+                    }}
+                    placeholder="「抽出」ボタンを押すと画像内の文字やバーコード（JAN/EAN/Code128等）・QRコードをローカルで読み取ります。読み取ったテキストはそのまま編集・検索対象として保存されます。"
+                    aria-label="抽出テキスト"
+                    className="h-full min-h-[120px] w-full flex-1 resize-none rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-xs leading-relaxed text-slate-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                  />
+                  <p className="mt-1.5 text-[10px] text-slate-500">
+                    フォーカスを外すと編集内容が自動保存され、検索対象になります（{ocrDraft.length} 文字）
+                  </p>
+                </div>
+              </aside>
+            )}
+          </div>
+
+          {/* ボトムバー: メモ編集 & グループ移動 */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 bg-slate-900/70 px-4 py-2.5">
+            <div className="flex flex-1 items-center gap-2">
+              <label htmlFor="lightbox-memo" className="text-xs font-medium text-slate-400">
+                メモ:
+              </label>
+              <input
+                id="lightbox-memo"
+                type="text"
+                value={memoDraft}
+                onChange={(e) => setMemoDraft(e.target.value)}
+                onBlur={() => {
+                  const trimmed = memoDraft.trim();
+                  if (trimmed !== clip.memo) {
+                    void onUpdateMemo(clip.id, trimmed);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
+                placeholder="この画像のメモを入力（検索対象になります）..."
+                className="flex-1 rounded-lg border border-slate-800 bg-slate-950 px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+
+            {groups.length > 0 && (
+              <div className="flex items-center gap-2">
+                <FolderInput className="h-3.5 w-3.5 text-slate-400" />
+                <span className="text-xs text-slate-400">グループ:</span>
+                <select
+                  value={clip.groupId}
+                  onChange={(e) => void onMoveGroup(clip.id, e.target.value)}
+                  aria-label="グループ変更"
+                  className="rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none"
+                >
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </dialog>
+  );
+}
