@@ -1,4 +1,4 @@
-export type EditorTool = 'crop' | 'rect' | 'arrow' | 'mosaic' | 'text';
+export type EditorTool = 'crop' | 'rect' | 'ellipse' | 'arrow' | 'mosaic' | 'text';
 
 export type StrokeWidthPreset = 'thin' | 'medium' | 'thick';
 
@@ -68,6 +68,17 @@ export interface RectAnnotation {
   strokeWidth: StrokeWidthPreset;
 }
 
+export interface EllipseAnnotation {
+  id: string;
+  type: 'ellipse';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: EditorColor;
+  strokeWidth: StrokeWidthPreset;
+}
+
 export interface ArrowAnnotation {
   id: string;
   type: 'arrow';
@@ -101,6 +112,7 @@ export interface TextAnnotation {
 
 export type EditorAnnotation =
   | RectAnnotation
+  | EllipseAnnotation
   | ArrowAnnotation
   | MosaicAnnotation
   | TextAnnotation;

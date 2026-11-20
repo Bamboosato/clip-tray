@@ -1,6 +1,7 @@
 import {
   ArrowUpRight,
   Check,
+  Circle,
   Copy,
   Crop,
   Eraser,
@@ -67,7 +68,8 @@ const TOOL_ITEMS: ReadonlyArray<{
   icon: typeof Crop;
 }> = [
   { id: 'crop', label: '切り抜き', icon: Crop },
-  { id: 'rect', label: '赤枠', icon: Square },
+  { id: 'rect', label: '四角枠', icon: Square },
+  { id: 'ellipse', label: '円枠', icon: Circle },
   { id: 'arrow', label: '矢印', icon: ArrowUpRight },
   { id: 'mosaic', label: 'モザイク', icon: Grid3x3 },
   { id: 'text', label: 'テキスト', icon: Type },
@@ -104,7 +106,8 @@ export function EditorToolbar({
   onOverwrite,
   onCancel,
 }: EditorToolbarProps) {
-  const isShapeTool = activeTool === 'rect' || activeTool === 'arrow';
+  const isShapeTool =
+    activeTool === 'rect' || activeTool === 'ellipse' || activeTool === 'arrow';
   const isTextTool = activeTool === 'text';
 
   return (
@@ -271,41 +274,49 @@ export function EditorToolbar({
           )}
 
           {isShapeTool && (
-            <div
-              role="group"
-              aria-label="線の太さ"
-              className="flex min-h-[34px] items-center rounded-lg border border-slate-700/80 bg-slate-800/85 p-0.5"
-            >
-              {STROKE_WIDTH_PRESETS.map((preset) => {
-                const isSelected = strokeWidth === preset.id;
-                const dotSizeClass =
-                  preset.id === 'thin'
-                    ? 'h-1.5 w-1.5'
-                    : preset.id === 'medium'
-                    ? 'h-2 w-2'
-                    : 'h-2.5 w-2.5';
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => onSelectStrokeWidth(preset.id)}
-                    aria-pressed={isSelected}
-                    title={`線の太さ: ${preset.label}`}
-                    className={`inline-flex min-h-7 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
-                      isSelected
-                        ? 'bg-slate-700 text-white'
-                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block rounded-full bg-current ${dotSizeClass}`}
-                      aria-hidden="true"
-                    />
-                    <span>{preset.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <>
+              <div
+                role="group"
+                aria-label="線の太さ"
+                className="flex min-h-[34px] items-center rounded-lg border border-slate-700/80 bg-slate-800/85 p-0.5"
+              >
+                {STROKE_WIDTH_PRESETS.map((preset) => {
+                  const isSelected = strokeWidth === preset.id;
+                  const dotSizeClass =
+                    preset.id === 'thin'
+                      ? 'h-1.5 w-1.5'
+                      : preset.id === 'medium'
+                      ? 'h-2 w-2'
+                      : 'h-2.5 w-2.5';
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => onSelectStrokeWidth(preset.id)}
+                      aria-pressed={isSelected}
+                      title={`線の太さ: ${preset.label}`}
+                      className={`inline-flex min-h-7 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
+                        isSelected
+                          ? 'bg-slate-700 text-white'
+                          : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block rounded-full bg-current ${dotSizeClass}`}
+                        aria-hidden="true"
+                      />
+                      <span>{preset.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {activeTool === 'ellipse' && (
+                <span className="hidden text-[11px] text-slate-400 lg:inline">
+                  Shift + ドラッグで真円
+                </span>
+              )}
+            </>
           )}
 
           {isTextTool && (

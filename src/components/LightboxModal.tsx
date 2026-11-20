@@ -117,7 +117,7 @@ export function LightboxModal({
 
   const isEditingRef = useRef(isEditing);
   const loadedImageRef = useRef<HTMLImageElement | null>(null);
-  const lastDrawToolRef = useRef<'rect' | 'arrow' | 'mosaic' | 'text'>('rect');
+  const lastDrawToolRef = useRef<'rect' | 'ellipse' | 'arrow' | 'mosaic' | 'text'>('rect');
   const isTextInputActiveRef = useRef(false);
   const pendingTextRef = useRef<{
     editingId: string | null;

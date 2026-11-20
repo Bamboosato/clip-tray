@@ -13,6 +13,7 @@ import type {
 import {
   FULL_VIEW_RECT,
   drawArrowAnnotation,
+  drawEllipseAnnotation,
   drawMosaicRegion,
   drawRectAnnotation,
   drawTextAnnotation,
@@ -69,7 +70,7 @@ type ActiveDragState =
   | {
       mode: 'draw';
       pointerId: number;
-      tool: 'rect' | 'arrow' | 'mosaic';
+      tool: 'rect' | 'ellipse' | 'arrow' | 'mosaic';
       startClientX: number;
       startClientY: number;
       startNormX: number;
@@ -540,13 +541,23 @@ export function ImageEditorOverlay({
       }
     }
 
-    // 2. 矩形・矢印（確定済み＋ドラッグ中）
+    // 2. 矩形・楕円・矢印（確定済み＋ドラッグ中）
     const natW = naturalSize.width;
     const natH = naturalSize.height;
 
     for (const annotation of annotations) {
       if (annotation.type === 'rect') {
         drawRectAnnotation(
+          ctx,
+          annotation,
+          viewRect,
+          displayWidth,
+          displayHeight,
+          natW,
+          natH
+        );
+      } else if (annotation.type === 'ellipse') {
+        drawEllipseAnnotation(
           ctx,
           annotation,
           viewRect,
@@ -571,6 +582,16 @@ export function ImageEditorOverlay({
     if (draftAnnotation) {
       if (draftAnnotation.type === 'rect') {
         drawRectAnnotation(
+          ctx,
+          draftAnnotation,
+          viewRect,
+          displayWidth,
+          displayHeight,
+          natW,
+          natH
+        );
+      } else if (draftAnnotation.type === 'ellipse') {
+        drawEllipseAnnotation(
           ctx,
           draftAnnotation,
           viewRect,
@@ -790,11 +811,12 @@ export function ImageEditorOverlay({
   };
 
   const buildDraftAnnotation = (
-    tool: 'rect' | 'arrow' | 'mosaic',
+    tool: 'rect' | 'ellipse' | 'arrow' | 'mosaic',
     startX: number,
     startY: number,
     endX: number,
-    endY: number
+    endY: number,
+    constrainCircle: boolean = false
   ): EditorAnnotation => {
     if (tool === 'arrow') {
       return {
@@ -804,6 +826,41 @@ export function ImageEditorOverlay({
         startY,
         endX,
         endY,
+        color,
+        strokeWidth,
+      };
+    }
+
+    if (tool === 'ellipse' && constrainCircle) {
+      const natW = Math.max(1, naturalSize.width);
+      const natH = Math.max(1, naturalSize.height);
+      const dxPx = (endX - startX) * natW;
+      const dyPx = (endY - startY) * natH;
+      const signX = dxPx >= 0 ? 1 : -1;
+      const signY = dyPx >= 0 ? 1 : -1;
+      const maxDxPx =
+        signX > 0
+          ? (viewRect.x + viewRect.width - startX) * natW
+          : (startX - viewRect.x) * natW;
+      const maxDyPx =
+        signY > 0
+          ? (viewRect.y + viewRect.height - startY) * natH
+          : (startY - viewRect.y) * natH;
+      const sizePx = Math.min(
+        Math.max(Math.abs(dxPx), Math.abs(dyPx)),
+        maxDxPx,
+        maxDyPx
+      );
+      const finalEndX = startX + (signX * sizePx) / natW;
+      const finalEndY = startY + (signY * sizePx) / natH;
+
+      return {
+        id: 'draft',
+        type: 'ellipse',
+        x: Math.min(startX, finalEndX),
+        y: Math.min(startY, finalEndY),
+        width: Math.abs(finalEndX - startX),
+        height: Math.abs(finalEndY - startY),
         color,
         strokeWidth,
       };
@@ -822,6 +879,19 @@ export function ImageEditorOverlay({
         y,
         width,
         height,
+      };
+    }
+
+    if (tool === 'ellipse') {
+      return {
+        id: 'draft',
+        type: 'ellipse',
+        x,
+        y,
+        width,
+        height,
+        color,
+        strokeWidth,
       };
     }
 
@@ -858,7 +928,8 @@ export function ImageEditorOverlay({
             drag.startNormX,
             drag.startNormY,
             normX,
-            normY
+            normY,
+            endEvent.shiftKey
           );
           const isValid =
             finalized.type === 'arrow'
@@ -1101,7 +1172,14 @@ export function ImageEditorOverlay({
         drag.hasMovedThreshold = true;
       }
       setDraftAnnotation(
-        buildDraftAnnotation(drag.tool, drag.startNormX, drag.startNormY, normX, normY)
+        buildDraftAnnotation(
+          drag.tool,
+          drag.startNormX,
+          drag.startNormY,
+          normX,
+          normY,
+          e.shiftKey
+        )
       );
       return;
     }

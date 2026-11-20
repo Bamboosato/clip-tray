@@ -4,6 +4,7 @@ import {
   type ArrowAnnotation,
   type CropRect,
   type EditorAnnotation,
+  type EllipseAnnotation,
   type RectAnnotation,
   type StrokeWidthPreset,
   type TextAnnotation,
@@ -182,6 +183,47 @@ export function drawRectAnnotation(
   ctx.lineWidth = lineWidth;
   ctx.lineJoin = 'round';
   ctx.strokeRect(dx, dy, dw, dh);
+  ctx.restore();
+}
+
+export function drawEllipseAnnotation(
+  ctx: CanvasRenderingContext2D,
+  annotation: EllipseAnnotation,
+  viewRect: CropRect,
+  canvasWidth: number,
+  canvasHeight: number,
+  naturalWidth: number,
+  naturalHeight: number
+): void {
+  if (
+    viewRect.width <= 0 ||
+    viewRect.height <= 0 ||
+    naturalWidth <= 0 ||
+    naturalHeight <= 0
+  ) {
+    return;
+  }
+
+  const dx = ((annotation.x - viewRect.x) / viewRect.width) * canvasWidth;
+  const dy = ((annotation.y - viewRect.y) / viewRect.height) * canvasHeight;
+  const dw = (annotation.width / viewRect.width) * canvasWidth;
+  const dh = (annotation.height / viewRect.height) * canvasHeight;
+  if (dw <= 0 || dh <= 0) return;
+
+  const displayScale = canvasWidth / (viewRect.width * naturalWidth);
+  const lineWidth = getStrokeWidthPx(
+    naturalWidth,
+    naturalHeight,
+    annotation.strokeWidth,
+    displayScale
+  );
+
+  ctx.save();
+  ctx.strokeStyle = annotation.color;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  ctx.ellipse(dx + dw / 2, dy + dh / 2, dw / 2, dh / 2, 0, 0, Math.PI * 2);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -443,10 +485,20 @@ export function renderEditedCanvas(
     }
   }
 
-  // 2. 矩形・矢印描画
+  // 2. 矩形・楕円・矢印描画
   for (const annotation of annotations) {
     if (annotation.type === 'rect') {
       drawRectAnnotation(
+        ctx,
+        annotation,
+        FULL_VIEW_RECT,
+        fullCanvas.width,
+        fullCanvas.height,
+        fullCanvas.width,
+        fullCanvas.height
+      );
+    } else if (annotation.type === 'ellipse') {
+      drawEllipseAnnotation(
         ctx,
         annotation,
         FULL_VIEW_RECT,
